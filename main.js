@@ -23,10 +23,10 @@ const glsl = SwissGL(canvas)
 class Textures extends EventTarget {
 	constructor() {
 		super()
-		this.textures = new Map()
+		this.textures = {}
 	}
 
-	generate_texture(src) {
+	generate_texture(src, drawable) {
 		const img = document.createElement("img")
 		img.crossOrigin = "anonymous"
 		img.addEventListener("load", () => {
@@ -44,9 +44,12 @@ class Textures extends EventTarget {
 				// see: https://developer.mozilla.org/en-US/docs/Web/API/OffscreenCanvas/transferToImageBitmap#return_value
 				bitmap.close()
 			
-				this.textures.set(src, tex)
+				this.textures[src] = tex
 				this.dispatchEvent(new CustomEvent("new_texture", {
-					detail: tex
+					detail: {
+						drawable: drawable,
+						texture: tex
+					}
 				}))
 			}).catch(err => {
 				if (err) console.error(`failed to create image ("${src}") bitmap: ${err}`)
@@ -60,19 +63,23 @@ class Textures extends EventTarget {
 		img.src = src
 	}
 
-	add_texture(src) {
-		if (!this.textures.has(src)) this.generate_texture(src)
+	add_texture(src, drawable) {
+		if (!(src in this.textures)) this.generate_texture(src, drawable)
 	}
 
 	get_texture(src) {
-		return this.textures.get(src)
+		return this.textures[src]
 	}
 }
 
 class Drawables {
 	constructor() {
-		this._textures = new Textures()
 		this.drawables = []
+		this._textures = new Textures()
+		this._textures.addEventListener("new_texture", ev => {
+			const detail = ev.detail
+			detail.drawable.set_texture(detail.texture)
+		})
 	}
 
 	add_drawable(drawable) {
@@ -81,10 +88,7 @@ class Drawables {
 		const src = drawable.src
 		const tex = this._textures.get_texture(src)
 		if (!tex) {
-			this._textures.add_texture(src)
-			this._textures.addEventListener("new_texture", (ev) => {
-				drawable.set_texture(ev.detail)
-			})
+			this._textures.add_texture(src, drawable)
 		} else {
 			drawable.set_texture(tex)
 		}
@@ -114,17 +118,17 @@ function main() {
 	const drawables = new Drawables()
 	window.drawables = drawables
 
-	const srcs = ["img/Dot-a.svg", "img/Dot-b.svg", "img/Dot-c.svg", "img/Dot-d.svg"] // :3
-	for (let i = 0; i < 50; i++) {
+	const srcs = ["img/Dot-a.svg", "img/Dot-b.svg", "img/Dot-c.svg", "img/Dot-d.svg"] // :3.
+	for (let i = 0; i < 1000; i++) {
 		drawables.add_drawable(new Drawable({src: srcs[Math.floor(Math.random() * srcs.length)]}))
 	}
 
+	const all_drawables = drawables.drawables
 	glsl.loop(({time}) => {
 		glsl.adjustCanvas()
 
-		const all_drawables = drawables.drawables
-		for (const idx in all_drawables) {
-			const drawable = all_drawables[idx]
+		for (const i in all_drawables) {
+			const drawable = all_drawables[i]
 			if (!drawable.ready) continue
 
 			// TODO: is it possible to make efficient use of instancing here...?
@@ -139,8 +143,8 @@ function main() {
 				FP: `texture(tex, vec2(UV.x, -UV.y))`
 			})
 
-			drawable.position[0] = Math.cos(time-idx+1) * (0.15*idx+1)
-			drawable.position[1] = Math.sin(time-idx+1) * (0.15*idx+1)
+			drawable.position[0] = Math.cos(time-i+1) * (0.05*i+1)
+			drawable.position[1] = Math.sin(time-i+1) * (0.05*i+1)
 		}
 	})
 }
