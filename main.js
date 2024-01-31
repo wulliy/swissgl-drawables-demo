@@ -21,14 +21,14 @@ const canvas = document.querySelector("#c")
 const glsl = SwissGL(canvas)
 
 class Textures extends EventTarget {
-	constructor() {
+	constructor(auto_set_texture) {
 		super()
 		this.textures = {}
+		this.auto_set_texture = auto_set_texture || false
 	}
 
 	generate_texture(src, drawable) {
-		const img = document.createElement("img")
-		img.crossOrigin = "anonymous"
+		const img = new Image()
 		img.addEventListener("load", () => {
 			const width = img.width
 			const height = img.height
@@ -45,12 +45,7 @@ class Textures extends EventTarget {
 				bitmap.close()
 			
 				this.textures[src] = tex
-				this.dispatchEvent(new CustomEvent("new_texture", {
-					detail: {
-						drawable: drawable,
-						texture: tex
-					}
-				}))
+				if (this.auto_set_texture) drawable.set_texture(tex)
 			}).catch(err => {
 				if (err) console.error(`failed to create image ("${src}") bitmap: ${err}`)
 			})
@@ -74,24 +69,19 @@ class Textures extends EventTarget {
 
 class Drawables {
 	constructor() {
+		this._textures = new Textures(true)
 		this.drawables = []
-		this._textures = new Textures()
-		this._textures.addEventListener("new_texture", ev => {
-			const detail = ev.detail
-			detail.drawable.set_texture(detail.texture)
-		})
 	}
 
 	add_drawable(drawable) {
 		this.drawables.push(drawable)
-			
 		const src = drawable.src
 		const tex = this._textures.get_texture(src)
 		if (!tex) {
 			this._textures.add_texture(src, drawable)
-		} else {
-			drawable.set_texture(tex)
+			return
 		}
+		drawable.set_texture(tex)
 	}
 }
 
@@ -115,12 +105,17 @@ class Drawable {
 }
 
 function main() {
+	const Blend = "d*(1-sa)+s*sa"
+	const VP = `VPos.xy = (XY + vec2(position.x, -position.y)) * (0.5-0.5/vec2(Mesh+1));`
+	const FP = `texture(tex, vec2(UV.x, -UV.y))`
+	const [cos, sin, random] = [Math.cos, Math.sin, Math.random]
+
 	const drawables = new Drawables()
 	window.drawables = drawables
 
 	const srcs = ["img/Dot-a.svg", "img/Dot-b.svg", "img/Dot-c.svg", "img/Dot-d.svg"] // :3.
 	for (let i = 0; i < 1000; i++) {
-		drawables.add_drawable(new Drawable({src: srcs[Math.floor(Math.random() * srcs.length)]}))
+		drawables.add_drawable(new Drawable({src: srcs[(random() * 4)|0]}))
 	}
 
 	const all_drawables = drawables.drawables
@@ -137,14 +132,13 @@ function main() {
 				tex: drawable.tex,
 				position: drawable.position,
 				Aspect: "fit",
-				Blend: "d*(1-sa)+s*sa",
-				Grid: [1, 1],
-				VP: `VPos.xy = (XY + vec2(position.x, -position.y)) * (0.5-0.5/vec2(Mesh+1));`,
-				FP: `texture(tex, vec2(UV.x, -UV.y))`
+				Blend,
+				VP,
+				FP
 			})
 
-			drawable.position[0] = Math.cos(time-i+1) * (0.05*i+1)
-			drawable.position[1] = Math.sin(time-i+1) * (0.05*i+1)
+			drawable.position[0] = cos(time-i+1) * (0.05*i+1)
+			drawable.position[1] = sin(time-i+1) * (0.05*i+1)
 		}
 	})
 }
