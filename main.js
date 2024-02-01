@@ -20,6 +20,7 @@
 const canvas = document.querySelector("#c")
 const glsl = SwissGL(canvas)
 
+
 class Textures extends EventTarget {
 	constructor(auto_set_texture) {
 		super()
@@ -27,12 +28,12 @@ class Textures extends EventTarget {
 		this.auto_set_texture = auto_set_texture || false
 	}
 
-	generate_texture(src, drawable) {
+	create_texture(src, drawable) {
 		const img = new Image()
 		img.addEventListener("load", () => {
 			const width = img.width
 			const height = img.height
-			createImageBitmap(img, 0, 0, width, height).then(bitmap => {
+			createImageBitmap(img, 0, 0, width, height, Textures.BITMAP_OPTIONS).then(bitmap => {
 				const tex = glsl({}, {
 					tag: src,
 					data: bitmap,
@@ -59,12 +60,16 @@ class Textures extends EventTarget {
 	}
 
 	add_texture(src, drawable) {
-		if (!(src in this.textures)) this.generate_texture(src, drawable)
+		if (!(src in this.textures)) this.create_texture(src, drawable)
 	}
 
 	get_texture(src) {
 		return this.textures[src]
 	}
+}
+
+Textures.BITMAP_OPTIONS = {
+	imageOrientation: "flipY"
 }
 
 class Drawables {
@@ -107,7 +112,7 @@ class Drawable {
 function main() {
 	const Blend = "d*(1-sa)+s*sa"
 	const VP = `VPos.xy = (XY + vec2(position.x, -position.y)) * (0.5-0.5/vec2(Mesh+1));`
-	const FP = `texture(tex, vec2(UV.x, -UV.y))`
+	const FP = `texture(tex, vec2(UV.x, UV.y))`
 	const [cos, sin, random] = [Math.cos, Math.sin, Math.random]
 
 	const drawables = new Drawables()
