@@ -20,20 +20,27 @@
 const canvas = document.querySelector("#c")
 const glsl = SwissGL(canvas)
 
+const BITMAP_OPTIONS = {
+	imageOrientation: "flipY"
+}
 
-class Textures extends EventTarget {
-	constructor(auto_set_texture) {
-		super()
-		this.textures = {}
-		this.auto_set_texture = auto_set_texture || false
+class Texture {
+	constructor(textures) {
+		this._textures = textures
+		this.texture = null
 	}
 
-	create_texture(src, drawable) {
+	set(src) {
+		if (src in this._textures) {
+			this.texture = this._textures[src]
+			return
+		}
+
 		const img = new Image()
 		img.addEventListener("load", () => {
 			const width = img.width
 			const height = img.height
-			createImageBitmap(img, 0, 0, width, height, Textures.BITMAP_OPTIONS).then(bitmap => {
+			createImageBitmap(img, 0, 0, width, height, BITMAP_OPTIONS).then(bitmap => {
 				const tex = glsl({}, {
 					tag: src,
 					data: bitmap,
@@ -44,11 +51,10 @@ class Textures extends EventTarget {
 
 				// see: https://developer.mozilla.org/en-US/docs/Web/API/OffscreenCanvas/transferToImageBitmap#return_value
 				bitmap.close()
-			
-				this.textures[src] = tex
-				if (this.auto_set_texture) drawable.set_texture(tex)
+				this._textures[src] = tex
+				this.texture = tex
 			}).catch(err => {
-				if (err) console.error(`failed to create image ("${src}") bitmap: ${err}`)
+				if (err) console.error(`failed to create bitmap of image ("${src}"): ${err}`)
 			})
 		}, {once: true})
 
@@ -58,35 +64,18 @@ class Textures extends EventTarget {
 
 		img.src = src
 	}
-
-	add_texture(src, drawable) {
-		if (!(src in this.textures)) this.create_texture(src, drawable)
-	}
-
-	get_texture(src) {
-		return this.textures[src]
-	}
-}
-
-Textures.BITMAP_OPTIONS = {
-	imageOrientation: "flipY"
 }
 
 class Drawables {
 	constructor() {
-		this._textures = new Textures(true)
+		this._textures = {}
 		this.drawables = []
 	}
 
 	add_drawable(drawable) {
 		this.drawables.push(drawable)
-		const src = drawable.src
-		const tex = this._textures.get_texture(src)
-		if (!tex) {
-			this._textures.add_texture(src, drawable)
-			return
-		}
-		drawable.set_texture(tex)
+		drawable.texture = new Texture(this._textures)
+		drawable.texture.set(drawable.src)
 	}
 }
 
@@ -95,17 +84,8 @@ class Drawable {
 		options = options || {}
 		this.src = options.src
 		this.position = options.position ? Object.values(options.position) : [0, 0]
-		this.ready = false
-		this.size = [0, 0]
-		this.tex = null
-	}
-
-	set_texture(tex) {
-		if (tex._tag === this.src) {
-			this.tex = tex
-			this.size = this.tex.size
-			this.ready = true
-		}
+		// this.ready = false
+		// this.size = [0, 0]
 	}
 }
 
@@ -120,7 +100,9 @@ function main() {
 
 	const srcs = ["img/Dot-a.svg", "img/Dot-b.svg", "img/Dot-c.svg", "img/Dot-d.svg"] // :3.
 	for (let i = 0; i < 1000; i++) {
-		drawables.add_drawable(new Drawable({src: srcs[(random() * 4)|0]}))
+		drawables.add_drawable(new Drawable({
+			src: srcs[(random() * 4)|0]
+		}))
 	}
 
 	const all_drawables = drawables.drawables
@@ -129,12 +111,13 @@ function main() {
 
 		for (const i in all_drawables) {
 			const drawable = all_drawables[i]
-			if (!drawable.ready) continue
+			const tex = drawable.texture?.texture
+			if (!tex) continue
 
 			// TODO: is it possible to make efficient use of instancing here...?
 			// `Grid: [10, 10]`
 			glsl({
-				tex: drawable.tex,
+				tex,
 				position: drawable.position,
 				Aspect: "fit",
 				Blend,
