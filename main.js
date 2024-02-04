@@ -49,17 +49,18 @@ class Texture {
 					format: "rgba8"
 				})
 
-				// see: https://developer.mozilla.org/en-US/docs/Web/API/OffscreenCanvas/transferToImageBitmap#return_value
+				// https://developer.mozilla.org/en-US/docs/Web/API/OffscreenCanvas/transferToImageBitmap#return_value
 				bitmap.close()
-				this._textures[src] = tex
+				
 				this.texture = tex
+				this._textures[src] = this.texture
 			}).catch(err => {
-				if (err) console.error(`failed to create bitmap of image ("${src}"): ${err}`)
+				console.error(`failed to create bitmap of image ("${src}"): ${err}`)
 			})
 		}, {once: true})
 
 		img.addEventListener("error", err => {
-			if (err) console.error(`failed to create image ("${src}"): ${err}`)
+			console.error(`failed to create image ("${src}"): ${err}`)
 		})
 
 		img.src = src
