@@ -20,6 +20,25 @@
 const canvas = document.querySelector("#c")
 const glsl = SwissGL(canvas)
 
+let _images = {}
+const texture_props = {ready: true}
+function create_texture(ready, img, src) {
+	if (!ready) {
+		return glsl({}, {
+			tag: src,
+			size: [0, 0],
+			filter: "linear",
+			format: "rgba8"
+		})
+	} else {
+		return Object.assign(glsl({}, {
+			tag: src,
+			data: img,
+			size: [img.width, img.height]
+		}), texture_props)
+	}
+}
+
 class Texture {
 	constructor(textures) {
 		this._textures = textures
@@ -27,30 +46,19 @@ class Texture {
 	}
 
 	set(src) {
-		if (src in this._textures) {
-			this.texture = this._textures[src]
-			return
+		if (src in this._textures) return this.texture = this._textures[src]
+		let img = _images[src]
+		if (img == null) {
+			_images[src] = new Image()
+			img = _images[src]
+			this.texture = create_texture(false, null, src)
+			img.addEventListener("load", () => this.texture = create_texture(true, img, src))
+			img.addEventListener("error", err => console.error(`failed to create image ("${src}"): ${err}`))
+			img.src = src
+		} else {
+			this.texture = create_texture(true, img, src)
 		}
-
-		const img = new Image()
-		img.addEventListener("load", () => {
-			const tex = glsl({}, {
-				tag: src,
-				data: img,
-				size: [img.width, img.height],
-				filter: "linear",
-				format: "rgba8"
-			})
-				
-			this.texture = tex
-			this._textures[src] = this.texture
-		}, {once: true})
-
-		img.addEventListener("error", err => {
-			console.error(`failed to create image ("${src}"): ${err}`)
-		})
-
-		img.src = src
+		this._textures[src] = this.texture
 	}
 }
 
@@ -86,7 +94,7 @@ function main() {
 	const drawables = new Drawables()
 	window.drawables = drawables
 
-	const srcs = ["img/Dot-a.svg", "img/Dot-b.svg", "img/Dot-c.svg", "img/Dot-d.svg"] // :3.
+	const srcs = ["img/Dot-a.svg", "img/Dot-b.svg", "img/Dot-c.svg", "img/Dot-d.svg"] // :3
 	for (let i = 0; i < 1000; i++) {
 		drawables.add_drawable(new Drawable({
 			src: srcs[(random() * 4)|0]
@@ -99,8 +107,8 @@ function main() {
 
 		for (const i in all_drawables) {
 			const drawable = all_drawables[i]
-			const tex = drawable.texture?.texture
-			if (!tex) continue
+			const tex = drawable.texture.texture
+			if (!tex.ready) continue
 
 			// TODO: is it possible to make efficient use of instancing here...?
 			// `Grid: [10, 10]`
