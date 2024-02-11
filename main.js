@@ -20,10 +20,6 @@
 const canvas = document.querySelector("#c")
 const glsl = SwissGL(canvas)
 
-const BITMAP_OPTIONS = {
-	imageOrientation: "flipY"
-}
-
 class Texture {
 	constructor(textures) {
 		this._textures = textures
