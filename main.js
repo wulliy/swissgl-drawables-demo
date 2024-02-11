@@ -38,25 +38,16 @@ class Texture {
 
 		const img = new Image()
 		img.addEventListener("load", () => {
-			const width = img.width
-			const height = img.height
-			createImageBitmap(img, 0, 0, width, height, BITMAP_OPTIONS).then(bitmap => {
-				const tex = glsl({}, {
-					tag: src,
-					data: bitmap,
-					size: [width, height],
-					filter: "linear",
-					format: "rgba8"
-				})
-
-				// https://developer.mozilla.org/en-US/docs/Web/API/OffscreenCanvas/transferToImageBitmap#return_value
-				bitmap.close()
-				
-				this.texture = tex
-				this._textures[src] = this.texture
-			}).catch(err => {
-				console.error(`failed to create bitmap of image ("${src}"): ${err}`)
+			const tex = glsl({}, {
+				tag: src,
+				data: img,
+				size: [img.width, img.height],
+				filter: "linear",
+				format: "rgba8"
 			})
+				
+			this.texture = tex
+			this._textures[src] = this.texture
 		}, {once: true})
 
 		img.addEventListener("error", err => {
@@ -92,8 +83,8 @@ class Drawable {
 
 function main() {
 	const Blend = "d*(1-sa)+s*sa"
-	const VP = `VPos.xy = (XY + vec2(position.x, -position.y)) * (0.5-0.5/vec2(Mesh+1));`
-	const FP = `texture(tex, vec2(UV.x, UV.y))`
+	const VP = `VPos.xy = (XY + vec2(position.x, position.y)) * (0.5-0.5/vec2(Mesh+1));`
+	const FP = `texture(tex, vec2(UV.x, -UV.y))`
 	const [cos, sin, random] = [Math.cos, Math.sin, Math.random]
 
 	const drawables = new Drawables()
