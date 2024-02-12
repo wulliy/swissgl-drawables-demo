@@ -20,7 +20,6 @@
 const canvas = document.querySelector("#c")
 const glsl = SwissGL(canvas)
 
-let _images = {}
 const texture_props = {ready: true}
 function create_texture(ready, img, src) {
 	if (!ready) {
@@ -47,18 +46,12 @@ class Texture {
 
 	set(src) {
 		if (src in this._textures) return this.texture = this._textures[src]
-		let img = _images[src]
-		if (img == null) {
-			_images[src] = new Image()
-			img = _images[src]
-			this.texture = create_texture(false, null, src)
-			img.addEventListener("load", () => this.texture = create_texture(true, img, src))
-			img.addEventListener("error", err => console.error(`failed to create image ("${src}"): ${err}`))
-			img.src = src
-		} else {
-			this.texture = create_texture(true, img, src)
-		}
+		const img = new Image()
+		this.texture = create_texture(false, null, src)
 		this._textures[src] = this.texture
+		img.addEventListener("load", () => this.texture = create_texture(true, img, src))
+		img.addEventListener("error", err => console.error(`failed to create image ("${src}"): ${err}`))
+		img.src = src
 	}
 }
 
