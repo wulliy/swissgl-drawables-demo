@@ -39,9 +39,8 @@ function create_texture(ready, img, src) {
 }
 
 class Texture {
-	constructor(textures) {
-		this._textures = textures
-		this.texture = null
+	constructor(_textures) { 
+		this._textures = _textures
 	}
 
 	set(src) {
@@ -49,7 +48,7 @@ class Texture {
 		const img = new Image()
 		this.texture = create_texture(false, null, src)
 		this._textures[src] = this.texture
-		img.addEventListener("load", () => this.texture = create_texture(true, img, src))
+		img.addEventListener("load", () => create_texture(true, img, src))
 		img.addEventListener("error", err => console.error(`failed to create image ("${src}"): ${err}`))
 		img.src = src
 	}
@@ -61,7 +60,7 @@ class Drawables {
 		this.drawables = []
 	}
 
-	add_drawable(drawable) {
+	add(drawable) {
 		this.drawables.push(drawable)
 		drawable.texture = new Texture(this._textures)
 		drawable.texture.set(drawable.src)
@@ -89,7 +88,7 @@ function main() {
 
 	const srcs = ["img/Dot-a.svg", "img/Dot-b.svg", "img/Dot-c.svg", "img/Dot-d.svg"] // :3
 	for (let i = 0; i < 1000; i++) {
-		drawables.add_drawable(new Drawable({
+		drawables.add(new Drawable({
 			src: srcs[(random() * 4)|0]
 		}))
 	}
